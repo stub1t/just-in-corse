@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title> just-in-cors</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg: #0b0f14;
+    --panel: #111722;
+    --panel-2: #0f1623;
+    --fg: #e6edf3;
+    --muted: #9fb1c7;
+    --border: #1f2937;
+    --ok: #6ee7b7;
+    --bad: #fca5a5;
+    --warn: #fde68a;
+    --code-bg: #172035;
+  }
+
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg: #ffffff;
+      --panel: #f2f4f6;
+      --panel-2: #ffffff;
+      --fg: #111827;
+      --muted: #4b5563;
+      --border: #e5e7eb;
+      --ok: #0ea5a1;
+      --bad: #ef4444;
+      --warn: #b45309;
+      --code-bg: #eef2ff;
+    }
+  }
+
+  :root[data-theme="light"]{
+    --bg: #ffffff;
+    --panel: #f2f4f6;
+    --panel-2: #ffffff;
+    --fg: #111827;
+    --muted: #4b5563;
+    --border: #e5e7eb;
+    --ok: #0ea5a1;
+    --bad: #ef4444;
+    --warn: #b45309;
+    --code-bg: #eef2ff;
+  }
+
+  :root[data-theme="dark"]{
+    --bg: #0b0f14;
+    --panel: #111722;
+    --panel-2: #0f1623;
+    --fg: #e6edf3;
+    --muted: #9fb1c7;
+    --border: #1f2937;
+    --ok: #6ee7b7;
+    --bad: #fca5a5;
+    --warn: #fde68a;
+    --code-bg: #172035;
+  }
+
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+  header{padding:16px 20px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+  h1{margin:0;font-size:18px}
+  .header-meta{color:var(--muted);font-size:12px}
+  main{display:grid;grid-template-columns:370px 1fr;gap:16px;padding:16px}
+  fieldset{border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--panel-2)}
+  legend{padding:0 6px;color:var(--muted)}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,select,button,textarea{width:100%;box-sizing:border-box;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:8px}
+  button{cursor:pointer;background:transparent;border:1px solid var(--border);border-radius:6px;padding:8px;display:inline-flex;align-items:center;gap:8px}
+  button:hover{filter:brightness(1.05)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stack{display:flex;flex-direction:column;gap:8px}
+  .actions button{text-align:left}
+  #out{white-space:pre-wrap;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;height:52vh;overflow:auto}
+  .ok{color:var(--ok)}
+  .bad{color:var(--bad)}
+  .warn{color:var(--warn)}
+  code.tag{background:var(--code-bg);padding:0 4px;border-radius:4px}
+  .muted{color:var(--muted);font-size:12px}
+  /* theme toggle icon button */
+  .theme-toggle{background:transparent;border:0;padding:6px 8px;border-radius:6px;color:var(--muted);display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+  .theme-toggle svg{width:18px;height:18px;display:block}
+  .theme-toggle:focus{outline:2px solid var(--border);outline-offset:2px}
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;gap:12px;align-items:center">
+    <h1>CORS Misconfiguration Demonstrator</h1>
+    <div class="header-meta">Showcases: <code class="tag">ACAO: *</code>, <code class="tag">ACAC: true</code>, reflected <code class="tag">Origin</code>, broad <code class="tag">ACAMethods</code>/<code class="tag">ACAHeaders</code>, <code class="tag">null</code>-origin acceptance</div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px">
+    <button id="themeBtn" class="theme-toggle" aria-label="Toggle theme" title="Toggle theme" type="button">
+      <!-- icon updates via JS; include both and show/hide via aria-hidden when toggled -->
+      <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+      <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="stack">
+    <fieldset>
+      <legend>Target</legend>
+      <label for="url">API endpoint (absolute URL)</label>
+      <input id="url" placeholder="https://api.victim.example/v1/profile" spellcheck="false" />
+      <div class="row">
+        <div>
+          <label for="method">Method</label>
+          <select id="method">
+            <option>GET</option>
+            <option>POST</option>
+            <option>PUT</option>
+            <option>DELETE</option>
+            <option>PATCH</option>
+          </select>
+        </div>
+        <div>
+          <label for="cred">Credentials</label>
+          <select id="cred">
+            <option value="include">include (sends cookies)</option>
+            <option value="same-origin">same-origin</option>
+            <option value="omit">omit</option>
+          </select>
+        </div>
+      </div>
+      <label for="body">Body (JSON, optional)</label>
+      <textarea id="body" rows="4" placeholder='{"example":"data"}'></textarea>
+      <label for="custh">Custom request headers (key:value per line)</label>
+      <textarea id="custh" rows="3" placeholder="X-Demo: 1&#10;X-Trigger: preflight"></textarea>
+    </fieldset>
+
+    <fieldset class="actions">
+      <legend>Probes</legend>
+      <button id="probe-basic">Probe 1 — Simple CORS read</button>
+      <button id="probe-cred">Probe 2 — Credentialed read (cookies)</button>
+      <button id="probe-preflight">Probe 3 — Forced preflight (custom headers)</button>
+      <button id="probe-methods">Probe 4 — Non-safelisted method</button>
+      <button id="probe-expose">Probe 5 — Check exposed headers</button>
+      <button id="probe-null">Probe 6 — <code>null</code> origin acceptance</button>
+      <button id="probe-reflect">Probe 7 — Origin reflection detection</button>
+      <button id="clear">Clear output</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Notes</legend>
+      <div class="muted">
+        • Success implies JavaScript on this page could read the cross-origin response, meaning the API granted access to the supplied <code>Origin</code> and policy. Browsers enforce CORS; if blocked, the fetch often fails before status/headers become visible.<br/>
+        • Probe 6 uses a sandboxed iframe to originate requests with <code>Origin: null</code> and relays results via <code>postMessage</code>.<br/>
+        • Use non-destructive endpoints for PUT/DELETE/PATCH probes.
+      </div>
+    </fieldset>
+  </section>
+
+  <section>
+    <fieldset>
+      <legend>Output</legend>
+      <div id="out"></div>
+    </fieldset>
+  </section>
+</main>
+
+<!-- Sandboxed iframe (null-origin driver) -->
+<iframe id="nullframe" sandbox="allow-scripts" style="display:none" srcdoc="
+<!doctype html><meta charset='utf-8'>
+<script>
+  function parseHeaders(txt){
+    const o={}; txt.split(/\\r?\\n/).forEach(l=>{ const i=l.indexOf(':'); if(i>0){ const k=l.slice(0,i).trim(); const v=l.slice(i+1).trim(); if(k) o[k.toLowerCase()]=v; }});
+    return o;
+  }
+  async function run(payload){
+    const { url, init, wantHeaders } = payload;
+    try{
+      const res = await fetch(url, init);
+      const headers = {};
+      if (wantHeaders) {
+        wantHeaders.forEach(h=> headers[h] = res.headers.get(h) );
+      }
+      let bodyText = '';
+      try { bodyText = await res.clone().text(); } catch(e){ bodyText = ''; }
+      parent.postMessage({ tag:'nullprobe', ok:true, status:res.status, headers, bodySample: bodyText.slice(0,512) }, '*');
+    }catch(e){
+      parent.postMessage({ tag:'nullprobe', ok:false, error: String(e) }, '*');
+    }
+  }
+  window.addEventListener('message', ev=>{
+    if(!ev.data || ev.data.tag !== 'kick') return;
+    run(ev.data.payload);
+  });
+<\/script>"></iframe>
+
+<script>
+  const out = document.getElementById('out');
+  const urlEl = document.getElementById('url');
+  const methodEl = document.getElementById('method');
+  const credEl = document.getElementById('cred');
+  const bodyEl = document.getElementById('body');
+  const custhEl = document.getElementById('custh');
+
+  function now(){ return new Date().toISOString(); }
+  function log(lines, cls){
+    const d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = `[${now()}] ` + (Array.isArray(lines) ? lines.join("\n") : lines);
+    out.appendChild(d);
+    out.scrollTop = out.scrollHeight;
+  }
+  function parseCustomHeaders(){
+    const raw = custhEl.value.trim();
+    if (!raw) return {};
+    const o = {};
+    raw.split(/\r?\n/).forEach(line=>{
+      const i = line.indexOf(':');
+      if (i > 0){
+        const k = line.slice(0,i).trim();
+        const v = line.slice(i+1).trim();
+        if (k) o[k] = v;
+      }
+    });
+    return o;
+  }
+  function commonInit({withCreds, withCustom, methodOverride}={}){
+    const headers = withCustom ? parseCustomHeaders() : {};
+    const method = methodOverride || methodEl.value;
+    const init = {
+      method,
+      mode: 'cors',
+      credentials: withCreds ? 'include' : credEl.value,
+      headers
+    };
+    const body = bodyEl.value.trim();
+    if (body && !['GET','HEAD'].includes(method)) {
+      init.body = body;
+      if (!headers['Content-Type'] && !headers['content-type']) {
+        init.headers['Content-Type'] = 'application/json';
+      }
+    }
+    return init;
+  }
+  async function doFetch(tag, fetchUrl, init, wantHeaders=['access-control-allow-origin','access-control-allow-credentials','access-control-expose-headers','vary']){
+    const t0 = performance.now();
+    try{
+      const res = await fetch(fetchUrl, init);
+      const t1 = performance.now();
+      const hdrs = {};
+      wantHeaders.forEach(h=> hdrs[h] = res.headers.get(h) );
+      let sample = '';
+      try { sample = await res.clone().text(); } catch(_){}
+      const lines = [
+        `${tag} OK`,
+        `status: ${res.status}`,
+        `timing_ms: ${Math.round(t1 - t0)}`,
+        `visible_headers: ${JSON.stringify(hdrs)}`,
+        `body_sample: ${(sample || '').slice(0, 400)}`
+      ];
+      log(lines, 'ok');
+      return {res, hdrs, sample};
+    }catch(e){
+      log([`${tag} BLOCKED by CORS or network`, String(e)], 'bad');
+      return null;
+    }
+  }
+
+  // Probe 1 — simple CORS read
+  document.getElementById('probe-basic').onclick = async ()=>{
+    const u = urlEl.value.trim();
+    if (!u) return;
+    log(`Probe 1 -> ${u}`);
+    await doFetch('Probe1', u, commonInit({withCreds:false, withCustom:false}));
+  };
+
+  // Probe 2 — credentialed read (cookies)
+  document.getElementById('probe-cred').onclick = async ()=>{
+    const u = urlEl.value.trim();
+    if (!u) return;
+    log(`Probe 2 -> ${u} (credentials=include)`);
+    const r = await doFetch('Probe2', u, commonInit({withCreds:true, withCustom:false}));
+    if (r){
+      const a = r.hdrs['access-control-allow-origin'];
+      const c = r.hdrs['access-control-allow-credentials'];
+      if (a === '*' && String(c).toLowerCase() === 'true'){
+        log('VULN: ACAO "*" with ACAC true allows credential theft (spec violation but frequently misconfigured).', 'bad');
+      }
+    }
+  };
+
+  // Probe 3 — forced preflight (custom headers)
+  document.getElementById('probe-preflight').onclick = async ()=>{
+    const u = urlEl.value.trim();
+    if (!u) return;
+    // Use GET + non-safelisted header to trigger preflight
+    const init = commonInit({withCreds:true, withCustom:true, methodOverride:'GET'});
+    init.headers = Object.assign({ 'X-Trigger-Preflight': '1' }, init.headers || {});
+    log(`Probe 3 -> ${u} (forced preflight via non-safelisted header)`);
+    await doFetch('Probe3', u, init, ['access-control-allow-origin','access-control-allow-credentials','access-control-allow-headers','access-control-allow-methods']);
+  };
+
+  // Probe 4 — non-safelisted method
+  document.getElementById('probe-methods').onclick = async ()=>{
+    const u = urlEl.value.trim();
+    if (!u) return;
+    const init = commonInit({withCreds:true, withCustom:true, methodOverride:'PUT'});
+    init.body ||= '{"_demo":"non-destructive"}';
+    log(`Probe 4 -> ${u} (method=PUT to test ACAMethods)`);
+    await doFetch('Probe4', u, init, ['access-control-allow-origin','access-control-allow-credentials','access-control-allow-methods']);
+  };
+
+  // Probe 5 — exposed headers visibility
+  document.getElementById('probe-expose').onclick = async ()=>{
+    const u = urlEl.value.trim();
+    if (!u) return;
+    const r = await doFetch('Probe5', u, commonInit({withCreds:true, withCustom:false}), ['access-control-expose-headers']);
+    if (r){
+      const exposed = r.hdrs['access-control-expose-headers'] || '';
+      if (exposed) log(`Exposed headers listed: ${exposed}`, 'warn');
+      else log('No exposed headers listed; only CORS-safelisted headers are readable.', 'ok');
+    }
+  };
+
+  // Probe 6 — null origin acceptance
+  window.addEventListener('message', (ev)=>{
+    if (!ev.data || ev.data.tag !== 'nullprobe') return;
+    if (ev.data.ok){
+      log([
+        'Probe6 (null-origin) OK',
+        `status: ${ev.data.status}`,
+        `visible_headers: ${JSON.stringify(ev.data.headers)}`,
+        `body_sample: ${String(ev.data.bodySample || '').slice(0, 400)}`
+      ], 'warn');
+      log('If readable, the API accepts Origin: null (dangerous for file://, sandboxed iframes, some mobile webviews).', 'bad');
+    } else {
+      log(['Probe6 (null-origin) BLOCKED', ev.data.error], 'ok');
+    }
+  });
+
+  document.getElementById('probe-null').onclick = ()=>{
+    const u = urlEl.value.trim();
+    if (!u) return;
+    const init = commonInit({withCreds:true, withCustom:false});
+    const wantHeaders = ['access-control-allow-origin','access-control-allow-credentials'];
+    const payload = { url: u, init, wantHeaders };
+    const f = document.getElementById('nullframe').contentWindow;
+    log(`Probe 6 -> ${u} (Origin: null via sandboxed iframe)`);
+    f.postMessage({ tag:'kick', payload }, '*');
+  };
+
+  // Probe 7 — origin reflection detection
+  document.getElementById('probe-reflect').onclick = async ()=>{
+    const u = urlEl.value.trim();
+    if (!u) return;
+    const r = await doFetch('Probe7', u, commonInit({withCreds:true, withCustom:false}));
+    if (r){
+      const origin = location.origin;
+      const a = r.hdrs['access-control-allow-origin'];
+      if (a && a === origin){
+        log(`Potential reflection: ACAO equals requesting Origin (${origin}). If server allows arbitrary origins and ACAC true, session can be exfiltrated.`, 'bad');
+      } else if (a === '*') {
+        log('Wildcard ACAO detected. If ACAC also true, critical misconfiguration.', 'bad');
+      } else {
+        log('ACAO not equal to this origin; static allowlist likely.', 'ok');
+      }
+    }
+  };
+
+  // Clear
+  document.getElementById('clear').onclick = ()=> { out.textContent = ''; };
+
+  /* THEME TOGGLE BEHAVIOR */
+  (function(){
+    const root = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    const sun = document.getElementById('icon-sun');
+    const moon = document.getElementById('icon-moon');
+    const stored = localStorage.getItem('cors_demo_theme'); // 'dark' | 'light' | null
+
+    function applyTheme(t){
+      if(t === 'light') root.dataset.theme = 'light';
+      else if(t === 'dark') root.dataset.theme = 'dark';
+      else root.removeAttribute('data-theme'); // follow OS via prefers-color-scheme
+      updateIcon();
+    }
+
+    function getInitial(){
+      if(stored) return stored;
+      // if no stored pref, follow OS
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return prefersDark ? 'dark' : 'light';
+    }
+
+    function updateIcon(){
+      const current = root.getAttribute('data-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      if(current === 'dark'){
+        moon.style.display = 'block';
+        sun.style.display = 'none';
+      } else {
+        moon.style.display = 'none';
+        sun.style.display = 'block';
+      }
+    }
+
+    // initialize
+    applyTheme(getInitial());
+
+    btn.addEventListener('click', ()=>{
+      const cur = root.getAttribute('data-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      const next = cur === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('cors_demo_theme', next);
+      applyTheme(next);
+    });
+
+    // react to OS changes only if user has not set explicit choice
+    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e=>{
+      if(!localStorage.getItem('cors_demo_theme')){
+        applyTheme(e.matches ? 'dark' : 'light');
+      }
+    });
+
+    // show proper icon on load
+    updateIcon();
+  })();
+</script>
+</body>
+</html>
