@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title> just-in-cors</title>
+<title>CORS Misconfiguration Demonstrator</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root{
@@ -140,23 +140,14 @@
 
     <fieldset class="actions">
       <legend>Probes</legend>
-      <button id="probe-basic">Probe 1 — Simple CORS read</button>
-      <button id="probe-cred">Probe 2 — Credentialed read (cookies)</button>
-      <button id="probe-preflight">Probe 3 — Forced preflight (custom headers)</button>
-      <button id="probe-methods">Probe 4 — Non-safelisted method</button>
-      <button id="probe-expose">Probe 5 — Check exposed headers</button>
-      <button id="probe-null">Probe 6 — <code>null</code> origin acceptance</button>
-      <button id="probe-reflect">Probe 7 — Origin reflection detection</button>
+      <button id="probe-basic">Probe 1 - Simple CORS read</button>
+      <button id="probe-cred">Probe 2 - Credentialed read (cookies)</button>
+      <button id="probe-preflight">Probe 3 - Forced preflight (custom headers)</button>
+      <button id="probe-methods">Probe 4 - Non-safelisted method</button>
+      <button id="probe-expose">Probe 5 - Check exposed headers</button>
+      <button id="probe-null">Probe 6 - <code>null</code> origin acceptance</button>
+      <button id="probe-reflect">Probe 7 - Origin reflection detection</button>
       <button id="clear">Clear output</button>
-    </fieldset>
-
-    <fieldset>
-      <legend>Notes</legend>
-      <div class="muted">
-        • Success implies JavaScript on this page could read the cross-origin response, meaning the API granted access to the supplied <code>Origin</code> and policy. Browsers enforce CORS; if blocked, the fetch often fails before status/headers become visible.<br/>
-        • Probe 6 uses a sandboxed iframe to originate requests with <code>Origin: null</code> and relays results via <code>postMessage</code>.<br/>
-        • Use non-destructive endpoints for PUT/DELETE/PATCH probes.
-      </div>
     </fieldset>
   </section>
 
