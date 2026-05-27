@@ -94,7 +94,7 @@
 
   <div style="display:flex;align-items:center;gap:8px">
     <button id="themeBtn" class="theme-toggle" aria-label="Toggle theme" title="Toggle theme" type="button">
-      <!-- icon updates via JS; include both and show/hide via aria-hidden when toggled -->
+      <!-- both icons are present; JS shows one via display based on the active theme -->
       <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
         <circle cx="12" cy="12" r="4"></circle>
         <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
@@ -163,10 +163,6 @@
 <iframe id="nullframe" sandbox="allow-scripts" style="display:none" srcdoc="
 <!doctype html><meta charset='utf-8'>
 <script>
-  function parseHeaders(txt){
-    const o={}; txt.split(/\\r?\\n/).forEach(l=>{ const i=l.indexOf(':'); if(i>0){ const k=l.slice(0,i).trim(); const v=l.slice(i+1).trim(); if(k) o[k.toLowerCase()]=v; }});
-    return o;
-  }
   async function run(payload){
     const { url, init, wantHeaders } = payload;
     try{
@@ -275,11 +271,9 @@
     log(`Probe 2 -> ${u} (credentials=include)`);
     const r = await doFetch('Probe2', u, commonInit({withCreds:true, withCustom:false}));
     if (r){
-      const a = r.hdrs['access-control-allow-origin'];
-      const c = r.hdrs['access-control-allow-credentials'];
-      if (a === '*' && String(c).toLowerCase() === 'true'){
-        log('VULN: ACAO "*" with ACAC true allows credential theft (spec violation but frequently misconfigured).', 'bad');
-      }
+      // ACAO/ACAC are not script-readable cross-origin, so the verdict is based
+      // on the observable fact that a credentialed read resolved successfully.
+      log('VULN: credentialed cross-origin read succeeded. The server allows this origin to read the response with cookies attached, enabling session/data exfiltration.', 'bad');
     }
   };
 
@@ -308,11 +302,16 @@
   document.getElementById('probe-expose').onclick = async ()=>{
     const u = urlEl.value.trim();
     if (!u) return;
-    const r = await doFetch('Probe5', u, commonInit({withCreds:true, withCustom:false}), ['access-control-expose-headers']);
+    // CORS-safelisted response headers are always readable; anything else is only
+    // readable if the server lists it in Access-Control-Expose-Headers. That header
+    // can't be enumerated from script, so we probe a set of commonly-exposed names.
+    const safelisted = ['cache-control','content-language','content-type','expires','last-modified','pragma'];
+    const candidates = ['etag','authorization','x-request-id','x-ratelimit-limit','x-csrf-token','set-cookie'];
+    const r = await doFetch('Probe5', u, commonInit({withCreds:true, withCustom:false}), [...safelisted, ...candidates]);
     if (r){
-      const exposed = r.hdrs['access-control-expose-headers'] || '';
-      if (exposed) log(`Exposed headers listed: ${exposed}`, 'warn');
-      else log('No exposed headers listed; only CORS-safelisted headers are readable.', 'ok');
+      const exposed = candidates.filter(h => r.hdrs[h] !== null);
+      if (exposed.length) log(`Non-safelisted headers exposed to script: ${exposed.join(', ')}`, 'warn');
+      else log('No probed non-safelisted headers were readable. Note: only the names probed here are tested; Access-Control-Expose-Headers cannot be enumerated from script.', 'ok');
     }
   };
 
@@ -349,15 +348,11 @@
     if (!u) return;
     const r = await doFetch('Probe7', u, commonInit({withCreds:true, withCustom:false}));
     if (r){
-      const origin = location.origin;
-      const a = r.hdrs['access-control-allow-origin'];
-      if (a && a === origin){
-        log(`Potential reflection: ACAO equals requesting Origin (${origin}). If server allows arbitrary origins and ACAC true, session can be exfiltrated.`, 'bad');
-      } else if (a === '*') {
-        log('Wildcard ACAO detected. If ACAC also true, critical misconfiguration.', 'bad');
-      } else {
-        log('ACAO not equal to this origin; static allowlist likely.', 'ok');
-      }
+      // The ACAO value isn't script-readable, so reflection can't be confirmed
+      // directly. A successful credentialed read means the server allowed this origin
+      // via one of: origin reflection, a wildcard, or an explicit allowlist entry. To
+      // distinguish, inspect the raw response headers in DevTools / an intercepting proxy.
+      log(`Credentialed read from origin ${location.origin} succeeded. The server allows this origin (reflection, wildcard, or explicit allowlist). Confirm which via raw response headers in DevTools or a proxy.`, 'bad');
     }
   };
 

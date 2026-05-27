@@ -4,7 +4,7 @@ Client-side proof-of-concept to detect and demonstrate insecure CORS configurati
 
 ## Features
 
-- Browser-only single-file UI (`index.html`) to test multiple CORS scenarios.
+- Browser-only single-file UI (`cors-poc.html`) to test multiple CORS scenarios.
 - Probes for:
   - Simple cross-origin reads
   - Credentialed requests (cookies)
