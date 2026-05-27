@@ -14,18 +14,11 @@ Client-side proof-of-concept to detect and demonstrate insecure CORS configurati
   - `Origin: null` acceptance via sandboxed iframe
   - Origin-reflection heuristics
 - Local storage toggle for theme preference (dark/light) and minimal UI.
-  <details>
-  <summary>Dark Theme</summary>
-  
-  ![Dark](img/screenshot_dark.png)
-  
-  </details>
-  
-  <details>
-  <summary>Light Theme</summary>
-  
-  ![Light](img/screenshot_light.png)
-  
-  </details>
 - No backend required.
+
+## Screenshots
+
+| Dark | Light |
+| --- | --- |
+| ![Dark theme](img/screenshot_dark.png) | ![Light theme](img/screenshot_light.png) |
 
